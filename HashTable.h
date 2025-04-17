@@ -1,6 +1,3 @@
-#ifndef HASHTABLE_H
-#define HASHTABLE_H
-
 // Project 3: Comparison of 2 Data Structures
 // Hash Table Custom Implementation
 
@@ -11,6 +8,10 @@ Notes:
 
 */
 
+#ifndef HASHTABLE_H
+#define HASHTABLE_H
+
+#include <algorithm>
 #include <climits>
 #include <cmath>
 #include <string>
@@ -19,9 +20,13 @@ Notes:
 using namespace std;
 
 // initial size of the hash table
-const int INITIAL_SIZE = 1000;
+const int INITIAL_SIZE = 9973;
+// exponent for string to int hash function
+const int STOI_HASH_EXPO = 11;
 // maximum tolerable load factor
 const double MAX_LOAD_FACTOR = 1.0;
+// length of each input data row
+const int ROW_LENGTH = 12;
 
 class HashTable
 {
@@ -37,9 +42,9 @@ private:
     vector<vector<string>>** arr;
 
     // hash function for int objects (modulo-based)
-    int hash(int intObj);
+    int hash(const int& intObj);
     // hash function for str objects (modulo-based)
-    int hash(string str);
+    int hash(const string& str);
     // method to resize the hash table if needed
     void resize();
 
@@ -50,11 +55,11 @@ public:
     ~HashTable();
 
     // returns true if separate chaining is required
-    bool insert(string obj, vector<string> additionalData);
-    // returns data associated with object, or empty vector if search fails
-    vector<string> search(string obj);
+    bool insert(const string& obj, vector<string>& additionalData);
+    // returns data associated with object(s), or empty vector if search fails
+    vector<vector<string>> search(const string& obj);
     // returns false if no data is stored at index
-    bool remove(string obj);
+    bool remove(const string& obj);
     // returns number of inserted objects
     int cardinality();
     // returns if the hash table is empty

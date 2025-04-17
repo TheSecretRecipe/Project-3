@@ -13,43 +13,77 @@ Notes:
 using namespace std;
 
 // int obj hash function (modulo-based hash calculation)
-int HashTable::hash(int intObj)
+int HashTable::hash(const int& intObj)
 {
     return intObj % size;
 }
 
 // str obj hash function (modulo-based hash calculation)
-int HashTable::hash(string str)
+int HashTable::hash(const string& str)
 {
     long long n = 0;
-    // assuming input is mostly lowercase letters
-    for(int i=0;i<str.length();i++)
+    // uses exponentiation for 15 letters at most
+    int numExpo = min((int)str.length(),15);
+    // hash calculation
+    int i = 0;
+    for(;i<numExpo;i++)
     {
-        int charIndex = ((int)str[i]-97)/3;
-        n += (long long)(charIndex*pow(9,i));
+        int charIndex = str[i] % STOI_HASH_EXPO;
+        n += (long long)(charIndex*pow(STOI_HASH_EXPO,i));
+    }
+    // remaining letters
+    for(;i<(int)str.length();i++)
+    {
+        n += (long long)(str[i]);
     }
     // modulo to fit hash size
-    return (int)(abs(n) % (long long)size);
+    return (int)(n % (long long)size);
 }
 
 // method to resize the hash table if needed
 void HashTable::resize()
 {
-    // create larger array, each resizing doubles array size
-    vector<vector<string>>** largerArr = new vector<vector<string>>*[2*size]();
-
-    // copies all elements
-    for(int i=0;i<size;i++)
-        largerArr[i] = arr[i];
-    // frees up memory from old array
-    delete[] arr;
-
-    // updates array pointer
-    arr = largerArr;
-
     // updates size & lf
     size *= 2;
     loadFactor = (double)entries/size;
+
+    vector<vector<string>>** oldArr = arr;
+
+    // update to larger array, each resizing doubles array size
+    arr = new vector<vector<string>>*[size]();
+
+    // copies all elements, recalculates hash code for old insertions
+    string obj;
+    vector<vector<string>>* list;
+    for(int i=0;i<size/2;i++)
+        if(oldArr[i] != nullptr)
+        {
+            for(int j=0;j<oldArr[i]->size();j++)
+            {
+                obj = (*oldArr[i])[j].back();
+                // insertion
+                int newHashCode = hash(obj);
+                // if bucket is empty, create a new list, then add the data as an entry to the list
+                if(arr[newHashCode] == nullptr)
+                {
+                    // must dynamically allocate memory for accessibility
+                    list = new vector<vector<string>>();
+                    arr[newHashCode] = list;
+                    arr[newHashCode]->push_back((*oldArr[i])[j]);
+                }
+                // otherwise, simply append the new entry to the list
+                else
+                {
+                    arr[newHashCode]->push_back((*oldArr[i])[j]);
+                }
+            }
+        }
+
+    // deletes all dynamic chains within old array
+    for(int i=0;i<size/2;i++)
+        delete oldArr[i];
+    // deletes old array
+    delete[] oldArr;
 }
 
 // constructor
@@ -74,7 +108,7 @@ HashTable::~HashTable()
 }
 
 // returns true if separate chaining is required
-bool HashTable::insert(string obj, vector<string> additionalData)
+bool HashTable::insert(const string& obj, vector<string>& additionalData)
 {
     bool chainingRequired = false;
     // adds the object itself to the data
@@ -101,13 +135,16 @@ bool HashTable::insert(string obj, vector<string> additionalData)
     // resize if load factor threshold reached
     if(loadFactor > MAX_LOAD_FACTOR)
         resize();
+    // removes the object itself after processing
+    additionalData.pop_back();
     // returns if separate chaining is required
     return chainingRequired;
 }
 
-// returns data associated with object, or empty vector if search fails
-vector<string> HashTable::search(string obj)
+// returns data associated with object(s), or empty vector if search fails
+vector<vector<string>> HashTable::search(const string& obj)
 {
+    vector<vector<string>> allData;
     // get hash code
     int hashCode = hash(obj);
     // at least one entry exists, so we must search
@@ -116,31 +153,32 @@ vector<string> HashTable::search(string obj)
             if(obj == data.back())
             {
                 data.pop_back();
-                return data;
+                allData.push_back(data);
             }
-    // not found
-    return vector<string>();
+    return allData;
 }
 
 // returns false if no data is stored at index
-bool HashTable::remove(string obj)
+bool HashTable::remove(const string& obj)
 {
     // get hash code
     int hashCode = hash(obj);
     // at least one entry exists, so we must search
     if(arr[hashCode] != nullptr)
-        for(int i=0;i<arr[hashCode]->size();i++)
-            if(obj == (*arr[hashCode])[i].back())
-            {
-                arr[hashCode]->erase(arr[hashCode]->begin() + i);
-                // update entries and lf
-                entries--;
-                loadFactor = (double)entries/size;
-                // successfully removed
-                return true;
-            }
-    // not found
-    return false;
+        {
+        int bef = arr[hashCode]->size();
+        arr[hashCode]->erase(remove_if(arr[hashCode]->begin(), arr[hashCode]->end(),
+            [&](const vector<string>& data){return obj == data.back();}), arr[hashCode]->end());
+        int aft = arr[hashCode]->size();
+        // nothing found
+        if(bef == aft)
+            return false;
+        // update entries and load factor
+        entries -= (bef - aft);
+        loadFactor = (double)entries/size;
+        }
+    // found
+    return true;
 }
 
 // returns number of inserted objects
