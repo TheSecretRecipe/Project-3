@@ -1,0 +1,182 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+using namespace std;
+
+const int T = 3; // Minimum degree (defines the range for number of keys)
+
+struct Player {
+    string username;
+    int rate;
+    string name;
+    string country;
+    int games;
+    int won, draw, lost;
+};
+
+class BTreeNode {
+public:
+    int keys[2 * T - 1];
+    string usernames[2 * T - 1];
+    BTreeNode* children[2 * T];
+    int n;
+    bool leaf;
+
+    BTreeNode(bool isLeaf) {
+        leaf = isLeaf;
+        n = 0;
+        for (int i = 0; i < 2 * T; ++i) children[i] = nullptr;
+    }
+
+    void traverse() {
+        for (int i = 0; i < n; i++) {
+            if (!leaf) children[i]->traverse();
+            cout << "[" << keys[i] << ": " << usernames[i] << "]\n";
+        }
+        if (!leaf) children[n]->traverse();
+    }
+
+    void insertNonFull(int k, const string& username);
+    void splitChild(int i, BTreeNode* y);
+    string searchUsername(int k);
+};
+
+class BTree {
+public:
+    BTreeNode* root;
+
+    BTree() { root = new BTreeNode(true); }
+
+    void traverse() {
+        if (root) root->traverse();
+    }
+
+    void insert(int k, const string& username);
+    string search(int k) {
+        return root->searchUsername(k);
+    }
+};
+
+void BTree::insert(int k, const string& username) {
+    if (root->n == 2 * T - 1) {
+        BTreeNode* s = new BTreeNode(false);
+        s->children[0] = root;
+        s->splitChild(0, root);
+        int i = (s->keys[0] < k) ? 1 : 0;
+        s->children[i]->insertNonFull(k, username);
+        root = s;
+    } else {
+        root->insertNonFull(k, username);
+    }
+}
+
+void BTreeNode::insertNonFull(int k, const string& username) {
+    int i = n - 1;
+    if (leaf) {
+        while (i >= 0 && keys[i] > k) {
+            keys[i + 1] = keys[i];
+            usernames[i + 1] = usernames[i];
+            i--;
+        }
+        keys[i + 1] = k;
+        usernames[i + 1] = username;
+        n++;
+    } else {
+        while (i >= 0 && keys[i] > k) i--;
+        if (children[i + 1]->n == 2 * T - 1) {
+            splitChild(i + 1, children[i + 1]);
+            if (keys[i + 1] < k) i++;
+        }
+        children[i + 1]->insertNonFull(k, username);
+    }
+}
+
+void BTreeNode::splitChild(int i, BTreeNode* y) {
+    BTreeNode* z = new BTreeNode(y->leaf);
+    z->n = T - 1;
+    for (int j = 0; j < T - 1; j++) {
+        z->keys[j] = y->keys[j + T];
+        z->usernames[j] = y->usernames[j + T];
+    }
+    if (!y->leaf) {
+        for (int j = 0; j < T; j++)
+            z->children[j] = y->children[j + T];
+    }
+    y->n = T - 1;
+    for (int j = n; j >= i + 1; j--)
+        children[j + 1] = children[j];
+    children[i + 1] = z;
+    for (int j = n - 1; j >= i; j--) {
+        keys[j + 1] = keys[j];
+        usernames[j + 1] = usernames[j];
+    }
+    keys[i] = y->keys[T - 1];
+    usernames[i] = y->usernames[T - 1];
+    n++;
+}
+
+string BTreeNode::searchUsername(int k) {
+    int i = 0;
+    while (i < n && k > keys[i]) i++;
+    if (i < n && keys[i] == k) return usernames[i];
+    if (leaf) return "";
+    return children[i]->searchUsername(k);
+}
+
+int main() {
+    BTree tree;
+    ifstream file("players_blitz.csv");
+    string line;
+    getline(file, line); // Skip header
+    while (getline(file, line)) {
+        stringstream ss(line);
+        string title, username, name, rateStr, country, gamesStr;
+        getline(ss, title, ',');
+        getline(ss, username, ',');
+        getline(ss, name, ',');
+        getline(ss, rateStr, ',');
+        getline(ss, country, ',');
+        getline(ss, gamesStr, ',');
+        if (rateStr.empty()) continue;
+        int rate = stoi(rateStr);
+        tree.insert(rate, username);
+    }
+
+    cout << "Enter a username to search: ";
+    string searchName;
+    cin >> searchName;
+
+    ifstream file2("players_blitz.csv");
+    getline(file2, line); // Skip header
+    bool found = false;
+    while (getline(file2, line)) {
+        stringstream ss(line);
+        string title, username, name, rateStr, country, gamesStr, wonStr, drawStr, lostStr;
+        getline(ss, title, ',');
+        getline(ss, username, ',');
+        getline(ss, name, ',');
+        getline(ss, rateStr, ',');
+        getline(ss, country, ',');
+        getline(ss, gamesStr, ',');
+        getline(ss, wonStr, ',');
+        getline(ss, drawStr, ',');
+        getline(ss, lostStr, ',');
+
+        if (username == searchName) {
+            cout << "Player found:\n";
+            cout << "Username: " << username << "\n";
+            cout << "Name: " << name << "\n";
+            cout << "Rating: " << rateStr << "\n";
+            cout << "Country: " << country << "\n";
+            cout << "Games Played: " << gamesStr << "\n";
+            cout << "Won: " << wonStr << ", Draw: " << drawStr << ", Lost: " << lostStr << "\n";
+            found = true;
+            break;
+        }
+    }
+
+    if (!found) cout << "Player not found.\n";
+    return 0;
+}
