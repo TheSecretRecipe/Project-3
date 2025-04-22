@@ -160,8 +160,8 @@ vector<string> Methods::playerToVector(Player& p)
     v.push_back(to_string(p.draw));
     v.push_back(to_string(p.lost));
     v.push_back(to_string(p.wonperc));
-    v.push_back(to_string(p.lostperc));
     v.push_back(to_string(p.drawperc));
+    v.push_back(to_string(p.lostperc));
     return v;
 }
 
