@@ -1,4 +1,4 @@
-# Project-3
+# Chess-Players-Searcher
 Project 3 for COP3530 (Data Structures and Algorithms)
 
 Instructions for running the code:
